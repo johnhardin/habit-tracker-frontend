@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Habit Tracker</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1a1a1a; background: #f5f5f0; min-height: 100vh; padding: 2rem 1rem; }
+  .container { max-width: 680px; margin: 0 auto; }
+  .header { padding-bottom: 1.5rem; border-bottom: 1px solid #e5e5e0; margin-bottom: 2rem; }
+  .header h1 { font-size: 24px; font-weight: 600; letter-spacing: -0.5px; }
+  .header p { font-size: 14px; color: #888; margin-top: 4px; }
+  .section-label { font-size: 11px; color: #aaa; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px; font-weight: 600; }
+  .add-form { background: #fff; border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; border: 1px solid #e5e5e0; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group label { font-size: 13px; color: #666; font-weight: 500; }
+  .form-group input, .form-group select {
+    padding: 9px 12px; border-radius: 8px; border: 1px solid #e0e0da;
+    background: #fafaf8; color: #1a1a1a; font-size: 14px;
+    font-family: inherit; width: 100%; outline: none; transition: border-color 0.15s;
+  }
+  .form-group input:focus, .form-group select:focus { border-color: #1a1a1a; background: #fff; }
+  .hint { font-size: 12px; color: #aaa; margin-top: 2px; }
+  .days-picker { display: none; margin-top: 8px; }
+  .days-picker.visible { display: flex; flex-wrap: wrap; gap: 8px; }
+  .day-checkbox { display: none; }
+  .day-label {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px; border-radius: 50%; border: 1px solid #e0e0da;
+    font-size: 12px; font-weight: 500; cursor: pointer; color: #888;
+    background: #fafaf8; transition: all 0.15s; user-select: none;
+  }
+  .day-checkbox:checked + .day-label {
+    background: #1a1a1a; color: #fff; border-color: #1a1a1a;
+  }
+  .btn {
+    padding: 9px 18px; border-radius: 8px; border: 1px solid #e0e0da;
+    background: transparent; color: #1a1a1a; font-size: 14px;
+    font-family: inherit; cursor: pointer; transition: all 0.15s; font-weight: 500;
+  }
+  .btn:hover { background: #f5f5f0; }
+  .btn-primary { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+  .btn-primary:hover { background: #333; }
+  .btn-danger { color: #c0392b; border-color: #f5c6c6; background: transparent; font-size: 13px; padding: 6px 12px; }
+  .btn-danger:hover { background: #fdf0f0; }
+  .habits-list { display: flex; flex-direction: column; gap: 10px; }
+  .habit-card {
+    background: #fff; border: 1px solid #e5e5e0; border-radius: 12px;
+    padding: 1rem 1.25rem; display: flex; align-items: center; justify-content: space-between;
+  }
+  .habit-info { display: flex; flex-direction: column; gap: 5px; }
+  .habit-name { font-size: 15px; font-weight: 600; }
+  .habit-meta { font-size: 13px; color: #888; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 6px; font-weight: 500; }
+  .badge-blue { background: #eef4ff; color: #2563eb; border: 1px solid #bfdbfe; }
+  .badge-green { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+  .badge-purple { background: #faf5ff; color: #7c3aed; border: 1px solid #ddd6fe; }
+  .empty-state { text-align: center; padding: 3rem 1rem; color: #bbb; font-size: 14px; background: #fff; border-radius: 12px; border: 1px solid #e5e5e0; }
+  .toast {
+    position: fixed; bottom: 1.5rem; right: 1.5rem; background: #1a1a1a; color: #fff;
+    padding: 10px 18px; border-radius: 8px; font-size: 13px; opacity: 0;
+    transition: opacity 0.2s; pointer-events: none; z-index: 999; font-weight: 500;
+  }
+  .toast.show { opacity: 1; }
+  .loading { color: #bbb; font-size: 14px; padding: 2rem 0; text-align: center; }
+  .error-msg { color: #c0392b; font-size: 13px; margin-top: 8px; margin-bottom: 8px; }
+  @media (max-width: 480px) { .form-row { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>Habit tracker</h1>
+    <p>Manage your habits and track your progress</p>
+  </div>
+
+  <div class="add-form">
+    <p class="section-label">Add new habit</p>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Habit name</label>
+        <input type="text" id="habitName" placeholder="e.g. Morning workout" />
+      </div>
+      <div class="form-group">
+        <label>Email for reminders</label>
+        <input type="email" id="habitEmail" placeholder="you@gmail.com" />
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Schedule</label>
+        <select id="habitSchedule" onchange="handleScheduleChange()">
+          <option value="daily">Daily</option>
+          <option value="weekdays">Weekdays only</option>
+          <option value="weekends">Weekends only</option>
+          <option value="specific">Specific days</option>
+        </select>
+        <div class="days-picker" id="daysPicker">
+          <input type="checkbox" class="day-checkbox" id="day-Mon" value="Mon">
+          <label class="day-label" for="day-Mon">Mon</label>
+          <input type="checkbox" class="day-checkbox" id="day-Tue" value="Tue">
+          <label class="day-label" for="day-Tue">Tue</label>
+          <input type="checkbox" class="day-checkbox" id="day-Wed" value="Wed">
+          <label class="day-label" for="day-Wed">Wed</label>
+          <input type="checkbox" class="day-checkbox" id="day-Thu" value="Thu">
+          <label class="day-label" for="day-Thu">Thu</label>
+          <input type="checkbox" class="day-checkbox" id="day-Fri" value="Fri">
+          <label class="day-label" for="day-Fri">Fri</label>
+          <input type="checkbox" class="day-checkbox" id="day-Sat" value="Sat">
+          <label class="day-label" for="day-Sat">Sat</label>
+          <input type="checkbox" class="day-checkbox" id="day-Sun" value="Sun">
+          <label class="day-label" for="day-Sun">Sun</label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Reminder time (Jakarta time)</label>
+        <input type="time" id="habitTime" />
+        <span class="hint">Leave empty to send every hour</span>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>User ID</label>
+        <input type="text" id="userId" value="fakhri" />
+      </div>
+    </div>
+    <div id="formError" class="error-msg"></div>
+    <button class="btn btn-primary" onclick="addHabit()">Add habit</button>
+  </div>
+
+  <p class="section-label">Your habits</p>
+  <div class="habits-list" id="habitsList">
+    <div class="loading">Loading habits...</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const API = 'https://YOUR_API_GATEWAY_URL.ap-southeast-1.amazonaws.com';
+
+  function handleScheduleChange() {
+    const schedule = document.getElementById('habitSchedule').value;
+    const picker = document.getElementById('daysPicker');
+    if (schedule === 'specific') {
+      picker.classList.add('visible');
+    } else {
+      picker.classList.remove('visible');
+    }
+  }
+
+  function getSelectedDays() {
+    const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+    return days.filter(d => document.getElementById(`day-${d}`).checked);
+  }
+
+  function formatSchedule(schedule) {
+    if (schedule === 'daily') return 'Daily';
+    if (schedule === 'weekdays') return 'Weekdays';
+    if (schedule === 'weekends') return 'Weekends';
+    if (schedule.startsWith('specific:')) {
+      return schedule.replace('specific:', '').split(',').join(', ');
+    }
+    return schedule;
+  }
+
+  function formatTime(time24) {
+    const [hour, minute] = time24.split(':').map(Number);
+    const period = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour % 12 || 12;
+    return `${hour12}:${String(minute).padStart(2, '0')} ${period}`;
+  }
+
+  async function loadHabits() {
+    const userId = document.getElementById('userId').value || 'fakhri';
+    const list = document.getElementById('habitsList');
+    list.innerHTML = '<div class="loading">Loading habits...</div>';
+    try {
+      const res = await fetch(`${API}/habits?userId=${userId}`);
+      const data = await res.json();
+      const habits = data.habits || [];
+      if (habits.length === 0) {
+        list.innerHTML = '<div class="empty-state">No habits yet. Add your first one above.</div>';
+        return;
+      }
+      list.innerHTML = habits.map(h => `
+        <div class="habit-card">
+          <div class="habit-info">
+            <span class="habit-name">${h.name}</span>
+            <div class="habit-meta">
+              ${h.email}
+              <span style="color:#ddd;">·</span>
+              <span class="badge badge-blue">${formatSchedule(h.schedule)}</span>
+              ${h.reminderTime ? `<span class="badge badge-green">${formatTime(h.reminderTime)}</span>` : ''}
+            </div>
+          </div>
+          <button class="btn btn-danger" onclick="deleteHabit('${h.habitId}')">Delete</button>
+        </div>
+      `).join('');
+    } catch (e) {
+      list.innerHTML = '<div class="empty-state">Failed to load habits. Check your connection.</div>';
+    }
+  }
+
+  async function addHabit() {
+    const name = document.getElementById('habitName').value.trim();
+    const email = document.getElementById('habitEmail').value.trim();
+    const scheduleRaw = document.getElementById('habitSchedule').value;
+    const reminderTime = document.getElementById('habitTime').value;
+    const userId = document.getElementById('userId').value.trim() || 'fakhri';
+    const errEl = document.getElementById('formError');
+    errEl.textContent = '';
+
+    if (!name || !email) {
+      errEl.textContent = 'Habit name and email are required.';
+      return;
+    }
+
+    let schedule = scheduleRaw;
+    if (scheduleRaw === 'specific') {
+      const selectedDays = getSelectedDays();
+      if (selectedDays.length === 0) {
+        errEl.textContent = 'Please select at least one day.';
+        return;
+      }
+      schedule = `specific:${selectedDays.join(',')}`;
+    }
+
+    const body = { userId, name, email, schedule };
+    if (reminderTime) body.reminderTime = reminderTime;
+
+    try {
+      const res = await fetch(`${API}/habits`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if (!res.ok) throw new Error('Failed');
+      document.getElementById('habitName').value = '';
+      document.getElementById('habitEmail').value = '';
+      document.getElementById('habitTime').value = '';
+      document.getElementById('habitSchedule').value = 'daily';
+      document.getElementById('daysPicker').classList.remove('visible');
+      ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].forEach(d => {
+        document.getElementById(`day-${d}`).checked = false;
+      });
+      showToast('Habit added');
+      loadHabits();
+    } catch (e) {
+      errEl.textContent = 'Failed to add habit. Try again.';
+    }
+  }
+
+  async function deleteHabit(habitId) {
+    const userId = document.getElementById('userId').value.trim() || 'fakhri';
+    try {
+      const res = await fetch(`${API}/habits?userId=${userId}&habitId=${habitId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed');
+      showToast('Habit deleted');
+      loadHabits();
+    } catch (e) {
+      showToast('Failed to delete habit');
+    }
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+  }
+
+  loadHabits();
+</script>
+</body>
+</html>
