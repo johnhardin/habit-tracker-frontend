@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weekly Summary — Habit Tracker</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1a1a1a; background: #f5f5f0; min-height: 100vh; padding: 2rem 1rem; }
+  .container { max-width: 760px; margin: 0 auto; }
+  .header { padding-bottom: 1.5rem; border-bottom: 1px solid #e5e5e0; margin-bottom: 2rem; display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+  .header-left h1 { font-size: 24px; font-weight: 600; letter-spacing: -0.5px; }
+  .header-left p { font-size: 14px; color: #888; margin-top: 4px; }
+  .header-right { display: flex; align-items: center; gap: 10px; }
+  .user-input { padding: 7px 11px; border-radius: 8px; border: 1px solid #e0e0da; background: #fafaf8; color: #1a1a1a; font-size: 13px; font-family: inherit; outline: none; width: 120px; }
+  .user-input:focus { border-color: #1a1a1a; background: #fff; }
+  .btn { padding: 7px 14px; border-radius: 8px; border: 1px solid #e0e0da; background: transparent; color: #1a1a1a; font-size: 13px; font-family: inherit; cursor: pointer; transition: all 0.15s; font-weight: 500; }
+  .btn:hover { background: #f0f0ec; }
+  .btn-primary { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+  .btn-primary:hover { background: #333; }
+  .nav-link { font-size: 13px; color: #888; text-decoration: none; }
+  .nav-link:hover { color: #1a1a1a; }
+  .section-label { font-size: 11px; color: #aaa; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px; font-weight: 600; }
+
+  /* Week nav */
+  .week-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; background: #fff; border: 1px solid #e5e5e0; border-radius: 12px; padding: 1rem 1.25rem; }
+  .week-label { font-size: 15px; font-weight: 600; }
+  .week-sub { font-size: 13px; color: #888; margin-top: 2px; }
+  .week-btns { display: flex; gap: 8px; }
+
+  /* Overall stat */
+  .overall-card { background: #fff; border: 1px solid #e5e5e0; border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; display: flex; align-items: center; gap: 2rem; flex-wrap: wrap; }
+  .overall-pct { font-size: 48px; font-weight: 700; letter-spacing: -2px; line-height: 1; }
+  .overall-pct.green { color: #16a34a; }
+  .overall-pct.orange { color: #d97706; }
+  .overall-pct.red { color: #dc2626; }
+  .overall-meta { flex: 1; min-width: 160px; }
+  .overall-meta p { font-size: 13px; color: #888; margin-top: 4px; }
+  .overall-bar-wrap { flex: 2; min-width: 160px; }
+  .bar-track { height: 8px; background: #f0f0ec; border-radius: 4px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 4px; transition: width 0.4s ease; }
+  .bar-fill.green { background: #16a34a; }
+  .bar-fill.orange { background: #d97706; }
+  .bar-fill.red { background: #dc2626; }
+
+  /* Habit grid */
+  .grid-table { width: 100%; border-collapse: collapse; }
+  .grid-wrap { background: #fff; border: 1px solid #e5e5e0; border-radius: 12px; overflow: hidden; margin-bottom: 2rem; }
+  .grid-table th { padding: 10px 12px; font-size: 11px; font-weight: 600; color: #aaa; text-transform: uppercase; letter-spacing: 0.07em; text-align: center; border-bottom: 1px solid #e5e5e0; background: #fafaf8; }
+  .grid-table th.habit-col { text-align: left; min-width: 140px; }
+  .grid-table td { padding: 14px 12px; border-bottom: 1px solid #f0f0ec; text-align: center; vertical-align: middle; }
+  .grid-table td.habit-col { text-align: left; }
+  .grid-table tr:last-child td { border-bottom: none; }
+  .habit-name-cell { font-size: 14px; font-weight: 600; }
+  .habit-rate { font-size: 12px; margin-top: 3px; font-weight: 500; }
+  .habit-rate.green { color: #16a34a; }
+  .habit-rate.orange { color: #d97706; }
+  .habit-rate.red { color: #dc2626; }
+  .day-cell { position: relative; }
+  .day-dot {
+    width: 30px; height: 30px; border-radius: 50%; margin: 0 auto;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; cursor: pointer; transition: all 0.15s;
+    border: 1.5px solid #e0e0da; background: #fafaf8; color: #bbb;
+    user-select: none;
+  }
+  .day-dot.done { background: #16a34a; border-color: #16a34a; color: #fff; }
+  .day-dot.missed { background: #fef2f2; border-color: #fecaca; color: #fca5a5; }
+  .day-dot.off-schedule { background: transparent; border-color: transparent; color: #ddd; cursor: default; }
+  .day-dot.today-dot { box-shadow: 0 0 0 2px #1a1a1a; }
+  .day-dot.future { opacity: 0.35; cursor: default; }
+  .day-dot.clickable:hover:not(.done):not(.future):not(.off-schedule) { border-color: #aaa; background: #f0f0ec; color: #888; }
+  .day-dot.done.clickable:hover { background: #15803d; border-color: #15803d; }
+  .col-today th, .col-today td { background: #fffef5; }
+  .day-header-label { font-size: 11px; color: #aaa; display: block; margin-bottom: 2px; }
+  .day-header-date { font-size: 13px; font-weight: 600; color: #1a1a1a; }
+  .day-header-today .day-header-date { color: #1a1a1a; text-decoration: underline; text-underline-offset: 3px; }
+
+  .empty-state { text-align: center; padding: 3rem 1rem; color: #bbb; font-size: 14px; }
+  .loading { color: #bbb; font-size: 14px; padding: 2rem 0; text-align: center; }
+  .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: #1a1a1a; color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 13px; opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 999; font-weight: 500; }
+  .toast.show { opacity: 1; }
+  @media (max-width: 600px) {
+    .overall-card { gap: 1rem; }
+    .overall-pct { font-size: 36px; }
+    .day-dot { width: 26px; height: 26px; font-size: 11px; }
+    .grid-table th, .grid-table td { padding: 10px 6px; }
+    .habit-name-cell { font-size: 13px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="header-left">
+      <h1>Weekly summary</h1>
+      <p id="weekRangeLabel">This week's habit completion</p>
+    </div>
+    <div class="header-right">
+      <a href="index.html" class="nav-link">← All habits</a>
+      <input type="text" id="userId" class="user-input" value="fakhri" placeholder="User ID" />
+      <button class="btn btn-primary" onclick="loadWeek()">Load</button>
+    </div>
+  </div>
+
+  <div class="week-nav">
+    <div>
+      <div class="week-label" id="weekNavLabel">—</div>
+      <div class="week-sub" id="weekNavSub">—</div>
+    </div>
+    <div class="week-btns">
+      <button class="btn" onclick="shiftWeek(-1)">← Prev</button>
+      <button class="btn" onclick="shiftWeek(0)">This week</button>
+      <button class="btn" onclick="shiftWeek(1)">Next →</button>
+    </div>
+  </div>
+
+  <div id="overallSection"></div>
+
+  <p class="section-label">Habit completion grid</p>
+  <div id="gridSection">
+    <div class="grid-wrap"><div class="loading">Loading...</div></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const API = 'https://YOUR_API_GATEWAY_URL.ap-southeast-1.amazonaws.com';
+  const STORAGE_KEY = 'habitCompletions';
+
+  // --- date helpers ---
+  function jakartaNow() {
+    return new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+  }
+  function toYMD(d) {
+    return d.toISOString().slice(0, 10);
+  }
+  function mondayOf(d) {
+    const day = d.getDay(); // 0=Sun
+    const diff = (day === 0) ? -6 : 1 - day;
+    const m = new Date(d);
+    m.setDate(d.getDate() + diff);
+    return m;
+  }
+  function addDays(d, n) {
+    const r = new Date(d);
+    r.setDate(r.getDate() + n);
+    return r;
+  }
+  function formatDateShort(d) {
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+  function weekLabel(monday) {
+    const sunday = addDays(monday, 6);
+    const opts = { month: 'short', day: 'numeric' };
+    const sameMonth = monday.getMonth() === sunday.getMonth();
+    if (sameMonth) {
+      return `${monday.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })} – ${sunday.getDate()}`;
+    }
+    return `${monday.toLocaleDateString('en-US', opts)} – ${sunday.toLocaleDateString('en-US', opts)}`;
+  }
+
+  // --- completions stored in localStorage ---
+  function loadStorage() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch { return {}; }
+  }
+  function saveStorage(data) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }
+  function compKey(userId, habitId, date) {
+    return `${userId}|${habitId}|${date}`;
+  }
+  function isCompleted(userId, habitId, date) {
+    return !!loadStorage()[compKey(userId, habitId, date)];
+  }
+  function setCompleted(userId, habitId, date, val) {
+    const data = loadStorage();
+    if (val) data[compKey(userId, habitId, date)] = true;
+    else delete data[compKey(userId, habitId, date)];
+    saveStorage(data);
+  }
+
+  // --- schedule check ---
+  function isScheduledOn(habit, date) {
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const dow = date.getDay();
+    const s = habit.schedule || 'daily';
+    if (s === 'daily') return true;
+    if (s === 'weekdays') return dow >= 1 && dow <= 5;
+    if (s === 'weekends') return dow === 0 || dow === 6;
+    if (s.startsWith('specific:')) {
+      const days = s.replace('specific:', '').split(',');
+      return days.includes(dayNames[dow]);
+    }
+    return true;
+  }
+
+  // --- week state ---
+  let weekOffset = 0;
+  let habits = [];
+
+  function currentMonday() {
+    const now = jakartaNow();
+    const base = mondayOf(now);
+    return addDays(base, weekOffset * 7);
+  }
+
+  function weekDates() {
+    const mon = currentMonday();
+    return Array.from({ length: 7 }, (_, i) => addDays(mon, i));
+  }
+
+  function updateWeekNav() {
+    const mon = currentMonday();
+    const label = weekLabel(mon);
+    const sub = (weekOffset === 0) ? 'Current week' : weekOffset === -1 ? 'Last week' : weekOffset < 0 ? `${Math.abs(weekOffset)} weeks ago` : `${weekOffset} week${weekOffset > 1 ? 's' : ''} ahead`;
+    document.getElementById('weekNavLabel').textContent = label;
+    document.getElementById('weekNavSub').textContent = sub;
+    document.getElementById('weekRangeLabel').textContent = label;
+  }
+
+  function shiftWeek(offset) {
+    if (offset === 0) weekOffset = 0;
+    else weekOffset += offset;
+    updateWeekNav();
+    renderGrid();
+  }
+
+  async function loadWeek() {
+    const userId = document.getElementById('userId').value.trim() || 'fakhri';
+    document.getElementById('gridSection').innerHTML = '<div class="grid-wrap"><div class="loading">Loading habits...</div></div>';
+    document.getElementById('overallSection').innerHTML = '';
+    try {
+      const res = await fetch(`${API}/habits?userId=${userId}`);
+      const data = await res.json();
+      habits = data.habits || [];
+      updateWeekNav();
+      renderGrid();
+    } catch (e) {
+      document.getElementById('gridSection').innerHTML = '<div class="grid-wrap"><div class="empty-state">Failed to load habits. Check your connection and API URL.</div></div>';
+    }
+  }
+
+  function colorClass(pct) {
+    return pct >= 70 ? 'green' : pct >= 40 ? 'orange' : 'red';
+  }
+
+  function renderGrid() {
+    const userId = document.getElementById('userId').value.trim() || 'fakhri';
+    const dates = weekDates();
+    const todayYMD = toYMD(jakartaNow());
+    const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+    if (habits.length === 0) {
+      document.getElementById('overallSection').innerHTML = '';
+      document.getElementById('gridSection').innerHTML = '<div class="grid-wrap"><div class="empty-state">No habits found for this user.</div></div>';
+      return;
+    }
+
+    // Build stats
+    let totalDone = 0, totalPossible = 0;
+    const habitStats = habits.map(h => {
+      let done = 0, scheduled = 0;
+      dates.forEach(d => {
+        if (!isScheduledOn(h, d)) return;
+        scheduled++;
+        totalPossible++;
+        if (isCompleted(userId, h.habitId, toYMD(d))) { done++; totalDone++; }
+      });
+      const pct = scheduled > 0 ? Math.round((done / scheduled) * 100) : 0;
+      return { ...h, done, scheduled, pct };
+    });
+
+    const overallPct = totalPossible > 0 ? Math.round((totalDone / totalPossible) * 100) : 0;
+    const cc = colorClass(overallPct);
+
+    // Overall card
+    document.getElementById('overallSection').innerHTML = `
+      <div class="overall-card" style="margin-bottom:2rem;">
+        <div class="overall-pct ${cc}">${overallPct}%</div>
+        <div class="overall-meta">
+          <strong style="font-size:15px;">Overall completion</strong>
+          <p>${totalDone} of ${totalPossible} scheduled done</p>
+        </div>
+        <div class="overall-bar-wrap">
+          <div class="bar-track">
+            <div class="bar-fill ${cc}" style="width:${overallPct}%"></div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Grid header
+    let thead = `<tr>
+      <th class="habit-col">Habit</th>`;
+    dates.forEach((d, i) => {
+      const ymd = toYMD(d);
+      const isToday = ymd === todayYMD;
+      thead += `<th class="${isToday ? 'col-today' : ''}">
+        <span class="day-header-label">${dayLabels[i]}</span>
+        <span class="day-header-date ${isToday ? 'day-header-today' : ''}">${d.getDate()}</span>
+      </th>`;
+    });
+    thead += '</tr>';
+
+    // Grid rows
+    let tbody = '';
+    habitStats.forEach(h => {
+      tbody += `<tr>
+        <td class="habit-col">
+          <div class="habit-name-cell">${escHtml(h.name)}</div>
+          <div class="habit-rate ${colorClass(h.pct)}">${h.scheduled > 0 ? `${h.done}/${h.scheduled} · ${h.pct}%` : 'Not scheduled'}</div>
+        </td>`;
+      dates.forEach(d => {
+        const ymd = toYMD(d);
+        const isToday = ymd === todayYMD;
+        const isFuture = ymd > todayYMD;
+        const scheduled = isScheduledOn(h, d);
+        const done = isCompleted(userId, h.habitId, ymd);
+
+        let cls = 'day-dot';
+        let symbol = '';
+        let clickable = false;
+
+        if (!scheduled) {
+          cls += ' off-schedule';
+          symbol = '—';
+        } else if (isFuture) {
+          cls += ' future';
+          symbol = '·';
+        } else if (done) {
+          cls += ' done clickable';
+          symbol = '✓';
+          clickable = true;
+        } else {
+          cls += ' missed clickable';
+          symbol = '✗';
+          clickable = true;
+        }
+        if (isToday && scheduled) cls += ' today-dot';
+
+        const onclick = clickable
+          ? `onclick="toggleCompletion('${escAttr(userId)}','${escAttr(h.habitId)}','${ymd}')"`
+          : '';
+        const title = scheduled ? (isFuture ? 'Future date' : done ? 'Click to undo' : 'Click to mark done') : 'Not scheduled';
+
+        tbody += `<td class="day-cell ${isToday ? 'col-today' : ''}">
+          <div class="${cls}" ${onclick} title="${title}">${symbol}</div>
+        </td>`;
+      });
+      tbody += '</tr>';
+    });
+
+    document.getElementById('gridSection').innerHTML = `
+      <div class="grid-wrap">
+        <table class="grid-table">
+          <thead>${thead}</thead>
+          <tbody>${tbody}</tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  async function toggleCompletion(userId, habitId, date) {
+    const wasDone = isCompleted(userId, habitId, date);
+    setCompleted(userId, habitId, date, !wasDone);
+
+    if (!wasDone) {
+      // Call the API to write the completion record
+      try {
+        await fetch(`${API}/complete?userId=${encodeURIComponent(userId)}&habitId=${encodeURIComponent(habitId)}&date=${date}`);
+      } catch (_) {}
+      showToast('Marked done');
+    } else {
+      showToast('Unmarked');
+    }
+    renderGrid();
+  }
+
+  function escHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function escAttr(str) {
+    return String(str).replace(/'/g,"\\'");
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2000);
+  }
+
+  // Init
+  updateWeekNav();
+  loadWeek();
+</script>
+</body>
+</html>

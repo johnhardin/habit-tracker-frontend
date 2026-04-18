@@ -4,13 +4,29 @@ A lightweight dashboard for the [habit-tracker-backend](https://github.com/johnh
 
 **Live:** https://habit.johnhardin.site
 
+## Pages
+
+| File | Description |
+|---|---|
+| `index.html` | Main dashboard — add, view, and delete habits |
+| `weekly.html` | Weekly summary — completion grid and stats for any week |
+
 ## Features
 
+### index.html
 - Add habits with a name, email, schedule, and reminder time
 - Choose from daily, weekdays, weekends, or specific days of the week
 - Set a reminder time in Jakarta time (UTC+7)
 - Delete habits
-- All data persists in DynamoDB via the backend API
+- **User selector** — switch between multiple user IDs from a dropdown; known users are saved to `localStorage` and auto-populated when you add a habit for a new user
+
+### weekly.html
+- **7-day completion grid** — one row per habit, one column per day (Mon–Sun)
+- Navigate to any past or future week with prev/next controls
+- Click a cell to mark a habit done for that day — calls the `/complete` API and persists state in `localStorage`
+- Per-habit completion rate and colour-coded overall percentage (green ≥ 70%, orange ≥ 40%, red < 40%)
+- Habits not scheduled on a given day are shown as dimmed, future dates are greyed out
+- Links back to `index.html`
 
 ## Tech Stack
 
@@ -37,9 +53,9 @@ API Gateway → Lambda → DynamoDB
 
 ## How It Works
 
-The dashboard is a single HTML file with no build process or dependencies. It makes direct HTTP requests to the API Gateway endpoints defined in the backend.
+The dashboard is two HTML files with no build process or dependencies. They make direct HTTP requests to the API Gateway endpoints defined in the backend.
 
-When you add a habit, the dashboard sends a POST request to the backend API which saves it to DynamoDB. The backend Lambda functions handle all the scheduling and email logic independently — the frontend only manages habit creation and deletion.
+When you add a habit, `index.html` sends a POST request to the backend API which saves it to DynamoDB. `weekly.html` fetches the habit list and tracks completion state in `localStorage`, syncing done-marks back to DynamoDB via the `/complete` endpoint.
 
 ## Hosting Setup
 
@@ -53,8 +69,8 @@ When you add a habit, the dashboard sends a POST request to the backend API whic
 
 **1. Upload to S3**
 ```bash
-aws s3 cp index.html s3://your-bucket-name/habit-tracker.html \
-  --region ap-southeast-1
+aws s3 cp index.html s3://your-bucket-name/index.html --region ap-southeast-1
+aws s3 cp weekly.html s3://your-bucket-name/weekly.html --region ap-southeast-1
 ```
 
 **2. Invalidate CloudFront cache after updates**
@@ -66,7 +82,7 @@ aws cloudfront create-invalidation \
 
 ### Update API endpoint
 
-If you deploy your own backend, update the `API` constant at the top of the script in `index.html`:
+Update the `API` constant at the top of the script in both files:
 
 ```javascript
 const API = 'https://your-api-gateway-url.execute-api.ap-southeast-1.amazonaws.com';
@@ -74,13 +90,15 @@ const API = 'https://your-api-gateway-url.execute-api.ap-southeast-1.amazonaws.c
 
 ## Local Development
 
-No build step needed. Just serve the file with Python:
+No build step needed. Serve both files with Python:
 
 ```bash
 python3 -m http.server 8000
 ```
 
-Then open `http://localhost:8000/index.html` in your browser.
+Then open in your browser:
+- `http://localhost:8000/index.html` — main dashboard
+- `http://localhost:8000/weekly.html` — weekly summary
 
 ## Related
 

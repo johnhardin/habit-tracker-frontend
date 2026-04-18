@@ -8,9 +8,9 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1a1a1a; background: #f5f5f0; min-height: 100vh; padding: 2rem 1rem; }
   .container { max-width: 680px; margin: 0 auto; }
-  .header { padding-bottom: 1.5rem; border-bottom: 1px solid #e5e5e0; margin-bottom: 2rem; }
-  .header h1 { font-size: 24px; font-weight: 600; letter-spacing: -0.5px; }
-  .header p { font-size: 14px; color: #888; margin-top: 4px; }
+  .header { padding-bottom: 1.5rem; border-bottom: 1px solid #e5e5e0; margin-bottom: 2rem; display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+  .header-left h1 { font-size: 24px; font-weight: 600; letter-spacing: -0.5px; }
+  .header-left p { font-size: 14px; color: #888; margin-top: 4px; }
   .section-label { font-size: 11px; color: #aaa; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px; font-weight: 600; }
   .add-form { background: #fff; border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; border: 1px solid #e5e5e0; }
   .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
@@ -66,14 +66,23 @@
   .toast.show { opacity: 1; }
   .loading { color: #bbb; font-size: 14px; padding: 2rem 0; text-align: center; }
   .error-msg { color: #c0392b; font-size: 13px; margin-top: 8px; margin-bottom: 8px; }
+  .viewer-bar { background: #fff; border: 1px solid #e5e5e0; border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .viewer-bar label { font-size: 13px; color: #666; font-weight: 500; white-space: nowrap; }
+  .viewer-bar select, .viewer-bar input[type="text"] { padding: 7px 11px; border-radius: 8px; border: 1px solid #e0e0da; background: #fafaf8; color: #1a1a1a; font-size: 14px; font-family: inherit; outline: none; transition: border-color 0.15s; }
+  .viewer-bar select:focus, .viewer-bar input[type="text"]:focus { border-color: #1a1a1a; background: #fff; }
+  .viewer-bar select { min-width: 140px; }
+  .viewer-bar input[type="text"] { width: 140px; }
   @media (max-width: 480px) { .form-row { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
 <div class="container">
   <div class="header">
-    <h1>Habit tracker</h1>
-    <p>Manage your habits and track your progress</p>
+    <div class="header-left">
+      <h1>Habit tracker</h1>
+      <p>Manage your habits and track your progress</p>
+    </div>
+    <a href="weekly.html" class="btn btn-primary" style="text-decoration:none;font-size:13px;padding:8px 14px;">Weekly summary →</a>
   </div>
 
   <div class="add-form">
@@ -130,6 +139,13 @@
     <button class="btn btn-primary" onclick="addHabit()">Add habit</button>
   </div>
 
+  <div class="viewer-bar">
+    <label for="viewerSelect">Viewing habits for</label>
+    <select id="viewerSelect" onchange="handleViewerChange()"></select>
+    <input type="text" id="viewerCustom" placeholder="Enter user ID" style="display:none;" />
+    <button class="btn btn-primary" onclick="loadHabits()" style="padding:7px 14px;font-size:13px;">View</button>
+  </div>
+
   <p class="section-label">Your habits</p>
   <div class="habits-list" id="habitsList">
     <div class="loading">Loading habits...</div>
@@ -140,6 +156,47 @@
 
 <script>
   const API = 'https://YOUR_API_GATEWAY_URL.ap-southeast-1.amazonaws.com';
+  const USERS_KEY = 'knownUserIds';
+
+  function getKnownUsers() {
+    try { return JSON.parse(localStorage.getItem(USERS_KEY) || '["fakhri"]'); } catch { return ['fakhri']; }
+  }
+  function saveKnownUsers(users) {
+    localStorage.setItem(USERS_KEY, JSON.stringify(users));
+  }
+  function addKnownUser(uid) {
+    if (!uid) return;
+    const users = getKnownUsers();
+    if (!users.includes(uid)) { users.push(uid); saveKnownUsers(users); populateViewerSelect(uid); }
+  }
+
+  function populateViewerSelect(selectValue) {
+    const sel = document.getElementById('viewerSelect');
+    const users = getKnownUsers();
+    const current = selectValue || sel.value || users[0];
+    sel.innerHTML = users.map(u => `<option value="${u}"${u === current ? ' selected' : ''}>${u}</option>`).join('') +
+      '<option value="__other__">Other...</option>';
+    handleViewerChange();
+  }
+
+  function handleViewerChange() {
+    const sel = document.getElementById('viewerSelect');
+    const custom = document.getElementById('viewerCustom');
+    if (sel.value === '__other__') {
+      custom.style.display = '';
+      custom.focus();
+    } else {
+      custom.style.display = 'none';
+    }
+  }
+
+  function getViewerUserId() {
+    const sel = document.getElementById('viewerSelect');
+    if (sel.value === '__other__') {
+      return document.getElementById('viewerCustom').value.trim() || 'fakhri';
+    }
+    return sel.value || 'fakhri';
+  }
 
   function handleScheduleChange() {
     const schedule = document.getElementById('habitSchedule').value;
@@ -174,7 +231,7 @@
   }
 
   async function loadHabits() {
-    const userId = document.getElementById('userId').value || 'fakhri';
+    const userId = getViewerUserId();
     const list = document.getElementById('habitsList');
     list.innerHTML = '<div class="loading">Loading habits...</div>';
     try {
@@ -246,6 +303,7 @@
       ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].forEach(d => {
         document.getElementById(`day-${d}`).checked = false;
       });
+      addKnownUser(userId);
       showToast('Habit added');
       loadHabits();
     } catch (e) {
@@ -254,7 +312,7 @@
   }
 
   async function deleteHabit(habitId) {
-    const userId = document.getElementById('userId').value.trim() || 'fakhri';
+    const userId = getViewerUserId();
     try {
       const res = await fetch(`${API}/habits?userId=${userId}&habitId=${habitId}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed');
@@ -272,6 +330,7 @@
     setTimeout(() => t.classList.remove('show'), 2500);
   }
 
+  populateViewerSelect();
   loadHabits();
 </script>
 </body>
