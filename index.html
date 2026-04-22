@@ -1,337 +1,896 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Habit Tracker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/amazon-cognito-identity-js/6.3.7/amazon-cognito-identity.min.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1a1a1a; background: #f5f5f0; min-height: 100vh; padding: 2rem 1rem; }
-  .container { max-width: 680px; margin: 0 auto; }
-  .header { padding-bottom: 1.5rem; border-bottom: 1px solid #e5e5e0; margin-bottom: 2rem; display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
-  .header-left h1 { font-size: 24px; font-weight: 600; letter-spacing: -0.5px; }
-  .header-left p { font-size: 14px; color: #888; margin-top: 4px; }
-  .section-label { font-size: 11px; color: #aaa; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px; font-weight: 600; }
-  .add-form { background: #fff; border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; border: 1px solid #e5e5e0; }
-  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
-  .form-group { display: flex; flex-direction: column; gap: 6px; }
-  .form-group label { font-size: 13px; color: #666; font-weight: 500; }
-  .form-group input, .form-group select {
-    padding: 9px 12px; border-radius: 8px; border: 1px solid #e0e0da;
-    background: #fafaf8; color: #1a1a1a; font-size: 14px;
-    font-family: inherit; width: 100%; outline: none; transition: border-color 0.15s;
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: #1a1a1a;
+    background: #f5f5f0;
+    min-height: 100vh;
   }
-  .form-group input:focus, .form-group select:focus { border-color: #1a1a1a; background: #fff; }
-  .hint { font-size: 12px; color: #aaa; margin-top: 2px; }
-  .days-picker { display: none; margin-top: 8px; }
-  .days-picker.visible { display: flex; flex-wrap: wrap; gap: 8px; }
-  .day-checkbox { display: none; }
-  .day-label {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 36px; height: 36px; border-radius: 50%; border: 1px solid #e0e0da;
-    font-size: 12px; font-weight: 500; cursor: pointer; color: #888;
-    background: #fafaf8; transition: all 0.15s; user-select: none;
+
+  /* ─────────── AUTH SCREEN ─────────── */
+  #auth-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
   }
-  .day-checkbox:checked + .day-label {
-    background: #1a1a1a; color: #fff; border-color: #1a1a1a;
+
+  .auth-card {
+    width: 100%;
+    max-width: 420px;
+    background: #fff;
+    border: 1px solid #e5e5e0;
+    border-radius: 12px;
+    padding: 2rem;
   }
+
+  .auth-title {
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: -0.5px;
+    margin-bottom: 4px;
+  }
+
+  .auth-subtitle {
+    font-size: 13px;
+    color: #888;
+    margin-bottom: 1.75rem;
+  }
+
+  .auth-tabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid #e5e5e0;
+    margin-bottom: 1.5rem;
+  }
+
+  .auth-tab {
+    background: none;
+    border: none;
+    font-size: 13px;
+    font-weight: 600;
+    color: #aaa;
+    padding: 6px 12px 10px;
+    cursor: pointer;
+    position: relative;
+    font-family: inherit;
+    transition: color 0.15s;
+  }
+
+  .auth-tab::after {
+    content: '';
+    position: absolute;
+    bottom: -1px; left: 0; right: 0;
+    height: 2px;
+    background: #1a1a1a;
+    border-radius: 2px 2px 0 0;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+
+  .auth-tab.active { color: #1a1a1a; }
+  .auth-tab.active::after { opacity: 1; }
+
+  .auth-panel { display: none; }
+  .auth-panel.active { display: block; }
+
+  .field { margin-bottom: 12px; }
+
+  .field label {
+    display: block;
+    font-size: 13px;
+    color: #666;
+    font-weight: 500;
+    margin-bottom: 6px;
+  }
+
+  .field input {
+    width: 100%;
+    padding: 9px 12px;
+    border-radius: 8px;
+    border: 1px solid #e0e0da;
+    background: #fafaf8;
+    color: #1a1a1a;
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s, background 0.15s;
+  }
+
+  .field input:focus {
+    border-color: #1a1a1a;
+    background: #fff;
+  }
+
   .btn {
-    padding: 9px 18px; border-radius: 8px; border: 1px solid #e0e0da;
-    background: transparent; color: #1a1a1a; font-size: 14px;
-    font-family: inherit; cursor: pointer; transition: all 0.15s; font-weight: 500;
+    padding: 9px 18px;
+    border-radius: 8px;
+    border: 1px solid #e0e0da;
+    background: transparent;
+    color: #1a1a1a;
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-weight: 500;
   }
   .btn:hover { background: #f5f5f0; }
-  .btn-primary { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
-  .btn-primary:hover { background: #333; }
-  .btn-danger { color: #c0392b; border-color: #f5c6c6; background: transparent; font-size: 13px; padding: 6px 12px; }
-  .btn-danger:hover { background: #fdf0f0; }
-  .habits-list { display: flex; flex-direction: column; gap: 10px; }
-  .habit-card {
-    background: #fff; border: 1px solid #e5e5e0; border-radius: 12px;
-    padding: 1rem 1.25rem; display: flex; align-items: center; justify-content: space-between;
+
+  .btn-primary {
+    width: 100%;
+    background: #1a1a1a;
+    color: #fff;
+    border-color: #1a1a1a;
+    padding: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    margin-top: 6px;
   }
+  .btn-primary:hover { background: #333; }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .auth-msg {
+    margin-top: 10px;
+    font-size: 13px;
+    text-align: center;
+    min-height: 18px;
+    color: #c0392b;
+  }
+  .auth-msg.success { color: #16a34a; }
+
+  #verify-panel {
+    display: none;
+    text-align: center;
+  }
+  #verify-panel p {
+    font-size: 13px;
+    color: #888;
+    margin-bottom: 1.25rem;
+    line-height: 1.6;
+  }
+  .verify-email-highlight {
+    color: #1a1a1a;
+    font-weight: 600;
+  }
+
+  /* ─────────── APP SCREEN ─────────── */
+  #app-screen { display: none; }
+
+  header {
+    background: #fff;
+    border-bottom: 1px solid #e5e5e0;
+    padding: 0 1.5rem;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .header-logo {
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+    color: #1a1a1a;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .user-badge {
+    font-size: 13px;
+    color: #888;
+  }
+
+  .btn-logout {
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1px solid #e0e0da;
+    background: transparent;
+    color: #888;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-weight: 500;
+  }
+  .btn-logout:hover { color: #c0392b; border-color: #f5c6c6; background: #fdf0f0; }
+
+  main {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+  }
+
+  .section-label {
+    font-size: 11px;
+    color: #aaa;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 12px;
+    font-weight: 600;
+  }
+
+  /* add-habit form */
+  .add-form {
+    background: #fff;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    border: 1px solid #e5e5e0;
+  }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .form-group label {
+    font-size: 13px;
+    color: #666;
+    font-weight: 500;
+  }
+
+  .form-group input,
+  .form-group select {
+    padding: 9px 12px;
+    border-radius: 8px;
+    border: 1px solid #e0e0da;
+    background: #fafaf8;
+    color: #1a1a1a;
+    font-size: 14px;
+    font-family: inherit;
+    width: 100%;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .form-group input:focus,
+  .form-group select:focus { border-color: #1a1a1a; background: #fff; }
+
+  .hint { font-size: 12px; color: #aaa; margin-top: 2px; }
+
+  .days-picker-row { display: none; margin-top: 8px; }
+  .days-picker-row.visible { display: flex; flex-wrap: wrap; gap: 8px; }
+
+  .day-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1px solid #e0e0da;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    color: #888;
+    background: #fafaf8;
+    font-family: inherit;
+    transition: all 0.15s;
+  }
+  .day-btn.selected {
+    background: #1a1a1a;
+    color: #fff;
+    border-color: #1a1a1a;
+  }
+
+  .btn-add {
+    padding: 9px 18px;
+    border-radius: 8px;
+    background: #1a1a1a;
+    color: #fff;
+    border: 1px solid #1a1a1a;
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background 0.15s;
+  }
+  .btn-add:hover { background: #333; }
+  .btn-add:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .error-msg { color: #c0392b; font-size: 13px; margin-top: 8px; }
+
+  /* habit list */
+  .habits-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .habit-card {
+    background: #fff;
+    border: 1px solid #e5e5e0;
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
   .habit-info { display: flex; flex-direction: column; gap: 5px; }
   .habit-name { font-size: 15px; font-weight: 600; }
-  .habit-meta { font-size: 13px; color: #888; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 6px; font-weight: 500; }
-  .badge-blue { background: #eef4ff; color: #2563eb; border: 1px solid #bfdbfe; }
-  .badge-green { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
-  .badge-purple { background: #faf5ff; color: #7c3aed; border: 1px solid #ddd6fe; }
-  .empty-state { text-align: center; padding: 3rem 1rem; color: #bbb; font-size: 14px; background: #fff; border-radius: 12px; border: 1px solid #e5e5e0; }
-  .toast {
-    position: fixed; bottom: 1.5rem; right: 1.5rem; background: #1a1a1a; color: #fff;
-    padding: 10px 18px; border-radius: 8px; font-size: 13px; opacity: 0;
-    transition: opacity 0.2s; pointer-events: none; z-index: 999; font-weight: 500;
+  .habit-meta {
+    font-size: 13px;
+    color: #888;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
   }
-  .toast.show { opacity: 1; }
+
+  .badge {
+    display: inline-block;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-weight: 500;
+  }
+  .badge-blue   { background: #eef4ff; color: #2563eb; border: 1px solid #bfdbfe; }
+  .badge-green  { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+
+  .btn-delete {
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1px solid #f5c6c6;
+    background: transparent;
+    color: #c0392b;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.15s;
+  }
+  .btn-delete:hover { background: #fdf0f0; }
+
+  .empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: #bbb;
+    font-size: 14px;
+    background: #fff;
+    border-radius: 12px;
+    border: 1px solid #e5e5e0;
+  }
+
   .loading { color: #bbb; font-size: 14px; padding: 2rem 0; text-align: center; }
-  .error-msg { color: #c0392b; font-size: 13px; margin-top: 8px; margin-bottom: 8px; }
-  .viewer-bar { background: #fff; border: 1px solid #e5e5e0; border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  .viewer-bar label { font-size: 13px; color: #666; font-weight: 500; white-space: nowrap; }
-  .viewer-bar select, .viewer-bar input[type="text"] { padding: 7px 11px; border-radius: 8px; border: 1px solid #e0e0da; background: #fafaf8; color: #1a1a1a; font-size: 14px; font-family: inherit; outline: none; transition: border-color 0.15s; }
-  .viewer-bar select:focus, .viewer-bar input[type="text"]:focus { border-color: #1a1a1a; background: #fff; }
-  .viewer-bar select { min-width: 140px; }
-  .viewer-bar input[type="text"] { width: 140px; }
-  @media (max-width: 480px) { .form-row { grid-template-columns: 1fr; } }
+
+  /* toast */
+  #toast {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    background: #1a1a1a;
+    color: #fff;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    opacity: 0;
+    transition: opacity 0.2s;
+    pointer-events: none;
+    z-index: 999;
+  }
+  #toast.show { opacity: 1; }
+  #toast.toast-error { background: #c0392b; }
+  #toast.toast-success { background: #1a1a1a; }
+
+  /* spinner */
+  .spinner {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    vertical-align: middle;
+    margin-right: 5px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media (max-width: 480px) {
+    .form-row { grid-template-columns: 1fr; }
+    header { padding: 0 1rem; }
+  }
 </style>
 </head>
 <body>
-<div class="container">
-  <div class="header">
-    <div class="header-left">
-      <h1>Habit tracker</h1>
-      <p>Manage your habits and track your progress</p>
-    </div>
-    <a href="weekly.html" class="btn btn-primary" style="text-decoration:none;font-size:13px;padding:8px 14px;">Weekly summary →</a>
-  </div>
 
-  <div class="add-form">
-    <p class="section-label">Add new habit</p>
-    <div class="form-row">
-      <div class="form-group">
-        <label>Habit name</label>
-        <input type="text" id="habitName" placeholder="e.g. Morning workout" />
+<!-- ═══════════════ AUTH SCREEN ═══════════════ -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <h1 class="auth-title">Habit tracker</h1>
+    <p class="auth-subtitle">Sign in to manage your habits</p>
+
+    <div id="auth-tabs-wrapper">
+      <div class="auth-tabs">
+        <button class="auth-tab active" data-tab="login">Sign In</button>
+        <button class="auth-tab"        data-tab="signup">Create Account</button>
       </div>
-      <div class="form-group">
-        <label>Email for reminders</label>
-        <input type="email" id="habitEmail" placeholder="you@gmail.com" />
-      </div>
-    </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label>Schedule</label>
-        <select id="habitSchedule" onchange="handleScheduleChange()">
-          <option value="daily">Daily</option>
-          <option value="weekdays">Weekdays only</option>
-          <option value="weekends">Weekends only</option>
-          <option value="specific">Specific days</option>
-        </select>
-        <div class="days-picker" id="daysPicker">
-          <input type="checkbox" class="day-checkbox" id="day-Mon" value="Mon">
-          <label class="day-label" for="day-Mon">Mon</label>
-          <input type="checkbox" class="day-checkbox" id="day-Tue" value="Tue">
-          <label class="day-label" for="day-Tue">Tue</label>
-          <input type="checkbox" class="day-checkbox" id="day-Wed" value="Wed">
-          <label class="day-label" for="day-Wed">Wed</label>
-          <input type="checkbox" class="day-checkbox" id="day-Thu" value="Thu">
-          <label class="day-label" for="day-Thu">Thu</label>
-          <input type="checkbox" class="day-checkbox" id="day-Fri" value="Fri">
-          <label class="day-label" for="day-Fri">Fri</label>
-          <input type="checkbox" class="day-checkbox" id="day-Sat" value="Sat">
-          <label class="day-label" for="day-Sat">Sat</label>
-          <input type="checkbox" class="day-checkbox" id="day-Sun" value="Sun">
-          <label class="day-label" for="day-Sun">Sun</label>
+
+      <!-- Login panel -->
+      <div class="auth-panel active" id="login-panel">
+        <div class="field">
+          <label>Email</label>
+          <input type="email" id="login-email" placeholder="you@example.com" />
         </div>
+        <div class="field">
+          <label>Password</label>
+          <input type="password" id="login-pass" placeholder="••••••••" />
+        </div>
+        <button class="btn-primary" id="btn-login">Sign In</button>
+        <div class="auth-msg" id="login-msg"></div>
       </div>
-      <div class="form-group">
-        <label>Reminder time (Jakarta time)</label>
-        <input type="time" id="habitTime" />
-        <span class="hint">Leave empty to send every hour</span>
+
+      <!-- Sign Up panel -->
+      <div class="auth-panel" id="signup-panel">
+        <div class="field">
+          <label>Email</label>
+          <input type="email" id="signup-email" placeholder="you@example.com" />
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input type="password" id="signup-pass" placeholder="Min 8 characters" />
+        </div>
+        <button class="btn-primary" id="btn-signup">Create Account</button>
+        <div class="auth-msg" id="signup-msg"></div>
       </div>
     </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label>User ID</label>
-        <input type="text" id="userId" value="fakhri" />
+
+    <!-- Verify Email panel (shown after sign up) -->
+    <div id="verify-panel">
+      <p>We sent a 6-digit code to<br/>
+        <span class="verify-email-highlight" id="verify-email-display"></span>
+      </p>
+      <div class="field">
+        <label>Verification Code</label>
+        <input type="text" id="verify-code" placeholder="123456" maxlength="6"
+               inputmode="numeric" style="text-align:center; letter-spacing:.3em; font-size:1.3rem;" />
       </div>
+      <button class="btn-primary" id="btn-verify">Confirm Account</button>
+      <div class="auth-msg" id="verify-msg"></div>
     </div>
-    <div id="formError" class="error-msg"></div>
-    <button class="btn btn-primary" onclick="addHabit()">Add habit</button>
-  </div>
-
-  <div class="viewer-bar">
-    <label for="viewerSelect">Viewing habits for</label>
-    <select id="viewerSelect" onchange="handleViewerChange()"></select>
-    <input type="text" id="viewerCustom" placeholder="Enter user ID" style="display:none;" />
-    <button class="btn btn-primary" onclick="loadHabits()" style="padding:7px 14px;font-size:13px;">View</button>
-  </div>
-
-  <p class="section-label">Your habits</p>
-  <div class="habits-list" id="habitsList">
-    <div class="loading">Loading habits...</div>
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
+<!-- ═══════════════ APP SCREEN ═══════════════ -->
+<div id="app-screen">
+  <header>
+    <span class="header-logo">Habit tracker</span>
+    <div class="header-right">
+      <span class="user-badge" id="user-email-display"></span>
+      <a href="weekly.html" class="btn" style="text-decoration:none;font-size:13px;padding:7px 14px;">Weekly summary →</a>
+      <button class="btn-logout" id="btn-logout">Sign out</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="add-form">
+      <p class="section-label">Add new habit</p>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Habit name</label>
+          <input type="text" id="habit-name" placeholder="e.g. Morning workout" />
+        </div>
+        <div class="form-group">
+          <label>Email for reminders</label>
+          <input type="email" id="habit-email" placeholder="you@gmail.com" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Schedule</label>
+          <select id="habit-schedule">
+            <option value="">Select schedule</option>
+            <option value="daily">Daily</option>
+            <option value="weekdays">Weekdays only</option>
+            <option value="weekends">Weekends only</option>
+            <option value="specific">Specific days</option>
+          </select>
+          <div class="days-picker-row" id="days-picker-row">
+            <button class="day-btn" data-day="Mon">Mon</button>
+            <button class="day-btn" data-day="Tue">Tue</button>
+            <button class="day-btn" data-day="Wed">Wed</button>
+            <button class="day-btn" data-day="Thu">Thu</button>
+            <button class="day-btn" data-day="Fri">Fri</button>
+            <button class="day-btn" data-day="Sat">Sat</button>
+            <button class="day-btn" data-day="Sun">Sun</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Reminder time (Jakarta time)</label>
+          <input type="time" id="habit-time" />
+          <span class="hint">Leave empty to send every hour</span>
+        </div>
+      </div>
+      <div id="formError" class="error-msg"></div>
+      <button class="btn-add" id="btn-add">Add habit</button>
+    </div>
+
+    <p class="section-label">Your habits</p>
+    <div class="habits-list" id="habits-container">
+      <div class="loading">Loading habits...</div>
+    </div>
+  </main>
+</div>
+
+<div id="toast"></div>
 
 <script>
-  const API = 'https://61y3ffttr2.execute-api.ap-southeast-1.amazonaws.com';
-  const USERS_KEY = 'knownUserIds';
+// ─────────────────────────────────────────────────────────────────
+//  CONFIG — replace with your actual values
+// ─────────────────────────────────────────────────────────────────
+const USER_POOL_ID = 'ap-southeast-1_x5XeePuup';
+const CLIENT_ID    = 'lk03hsitkj6ptq3ioeh8i1av4';
+const API          = 'https://61y3ffttr2.execute-api.ap-southeast-1.amazonaws.com';
 
-  function getKnownUsers() {
-    try { return JSON.parse(localStorage.getItem(USERS_KEY) || '["fakhri"]'); } catch { return ['fakhri']; }
-  }
-  function saveKnownUsers(users) {
-    localStorage.setItem(USERS_KEY, JSON.stringify(users));
-  }
-  function addKnownUser(uid) {
-    if (!uid) return;
-    const users = getKnownUsers();
-    if (!users.includes(uid)) { users.push(uid); saveKnownUsers(users); populateViewerSelect(uid); }
-  }
+// ─────────────────────────────────────────────────────────────────
+//  Cognito setup
+// ─────────────────────────────────────────────────────────────────
+const poolData = { UserPoolId: USER_POOL_ID, ClientId: CLIENT_ID };
+const userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData);
 
-  function populateViewerSelect(selectValue) {
-    const sel = document.getElementById('viewerSelect');
-    const users = getKnownUsers();
-    const current = selectValue || sel.value || users[0];
-    sel.innerHTML = users.map(u => `<option value="${u}"${u === current ? ' selected' : ''}>${u}</option>`).join('') +
-      '<option value="__other__">Other...</option>';
-    handleViewerChange();
-  }
+let currentUser  = null;
+let idToken      = null;
+let pendingEmail = '';
 
-  function handleViewerChange() {
-    const sel = document.getElementById('viewerSelect');
-    const custom = document.getElementById('viewerCustom');
-    if (sel.value === '__other__') {
-      custom.style.display = '';
-      custom.focus();
-    } else {
-      custom.style.display = 'none';
+// ─────────────────────────────────────────────────────────────────
+//  Helpers
+// ─────────────────────────────────────────────────────────────────
+function showToast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `show toast-${type}`;
+  setTimeout(() => t.className = '', 2500);
+}
+
+function setMsg(id, msg, type = 'error') {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.className = `auth-msg${type === 'success' ? ' success' : ''}`;
+}
+
+function authHeaders() {
+  return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` };
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  Session restore on page load
+// ─────────────────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  const cogUser = userPool.getCurrentUser();
+  if (!cogUser) return;
+
+  cogUser.getSession((err, session) => {
+    if (err || !session.isValid()) return;
+    currentUser = cogUser;
+    idToken = session.getIdToken().getJwtToken();
+    const email = session.getIdToken().payload.email;
+    enterApp(email);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  Tab switching
+// ─────────────────────────────────────────────────────────────────
+document.querySelectorAll('.auth-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.auth-panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById(`${tab.dataset.tab}-panel`).classList.add('active');
+    setMsg('login-msg', ''); setMsg('signup-msg', '');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  Sign In
+// ─────────────────────────────────────────────────────────────────
+document.getElementById('btn-login').addEventListener('click', () => {
+  const email = document.getElementById('login-email').value.trim();
+  const pass  = document.getElementById('login-pass').value;
+  if (!email || !pass) return setMsg('login-msg', 'Please fill in all fields.');
+
+  const btn = document.getElementById('btn-login');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Signing in...';
+  setMsg('login-msg', '');
+
+  const authDetails = new AmazonCognitoIdentity.AuthenticationDetails({ Username: email, Password: pass });
+  const cogUser = new AmazonCognitoIdentity.CognitoUser({ Username: email, Pool: userPool });
+
+  cogUser.authenticateUser(authDetails, {
+    onSuccess(session) {
+      currentUser = cogUser;
+      idToken = session.getIdToken().getJwtToken();
+      enterApp(email);
+    },
+    onFailure(err) {
+      btn.disabled = false;
+      btn.textContent = 'Sign In';
+      const msgs = {
+        'NotAuthorizedException':    'Incorrect email or password.',
+        'UserNotConfirmedException': 'Please verify your email first.',
+        'UserNotFoundException':     'No account found with this email.',
+      };
+      setMsg('login-msg', msgs[err.code] || err.message);
+    },
+  });
+});
+
+['login-email', 'login-pass'].forEach(id => {
+  document.getElementById(id).addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('btn-login').click();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  Sign Up
+// ─────────────────────────────────────────────────────────────────
+document.getElementById('btn-signup').addEventListener('click', () => {
+  const email = document.getElementById('signup-email').value.trim();
+  const pass  = document.getElementById('signup-pass').value;
+  if (!email || !pass) return setMsg('signup-msg', 'Please fill in all fields.');
+  if (pass.length < 8)  return setMsg('signup-msg', 'Password must be at least 8 characters.');
+
+  const btn = document.getElementById('btn-signup');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Creating account...';
+  setMsg('signup-msg', '');
+
+  const attrEmail = new AmazonCognitoIdentity.CognitoUserAttribute({ Name: 'email', Value: email });
+
+  userPool.signUp(email, pass, [attrEmail], null, (err) => {
+    btn.disabled = false;
+    btn.textContent = 'Create Account';
+    if (err) {
+      const msgs = {
+        'UsernameExistsException':   'An account with this email already exists.',
+        'InvalidPasswordException':  'Password does not meet requirements.',
+      };
+      return setMsg('signup-msg', msgs[err.code] || err.message);
     }
-  }
+    pendingEmail = email;
+    document.getElementById('auth-tabs-wrapper').style.display = 'none';
+    document.getElementById('verify-panel').style.display = 'block';
+    document.getElementById('verify-email-display').textContent = email;
+  });
+});
 
-  function getViewerUserId() {
-    const sel = document.getElementById('viewerSelect');
-    if (sel.value === '__other__') {
-      return document.getElementById('viewerCustom').value.trim() || 'fakhri';
-    }
-    return sel.value || 'fakhri';
-  }
+// ─────────────────────────────────────────────────────────────────
+//  Verify email
+// ─────────────────────────────────────────────────────────────────
+document.getElementById('btn-verify').addEventListener('click', () => {
+  const code = document.getElementById('verify-code').value.trim();
+  if (!code) return setMsg('verify-msg', 'Please enter the verification code.');
 
-  function handleScheduleChange() {
-    const schedule = document.getElementById('habitSchedule').value;
-    const picker = document.getElementById('daysPicker');
-    if (schedule === 'specific') {
-      picker.classList.add('visible');
-    } else {
-      picker.classList.remove('visible');
-    }
-  }
+  const btn = document.getElementById('btn-verify');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Verifying...';
+  setMsg('verify-msg', '');
 
-  function getSelectedDays() {
-    const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-    return days.filter(d => document.getElementById(`day-${d}`).checked);
-  }
+  const cogUser = new AmazonCognitoIdentity.CognitoUser({ Username: pendingEmail, Pool: userPool });
 
-  function formatSchedule(schedule) {
-    if (schedule === 'daily') return 'Daily';
-    if (schedule === 'weekdays') return 'Weekdays';
-    if (schedule === 'weekends') return 'Weekends';
-    if (schedule.startsWith('specific:')) {
-      return schedule.replace('specific:', '').split(',').join(', ');
-    }
-    return schedule;
-  }
+  cogUser.confirmRegistration(code, true, (err) => {
+    btn.disabled = false;
+    btn.textContent = 'Confirm Account';
+    if (err) return setMsg('verify-msg', err.message);
 
-  function formatTime(time24) {
-    const [hour, minute] = time24.split(':').map(Number);
-    const period = hour >= 12 ? 'PM' : 'AM';
-    const hour12 = hour % 12 || 12;
-    return `${hour12}:${String(minute).padStart(2, '0')} ${period}`;
-  }
+    document.getElementById('verify-panel').style.display = 'none';
+    document.getElementById('auth-tabs-wrapper').style.display = 'block';
+    document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.auth-panel').forEach(p => p.classList.remove('active'));
+    document.querySelector('[data-tab="login"]').classList.add('active');
+    document.getElementById('login-panel').classList.add('active');
+    document.getElementById('login-email').value = pendingEmail;
+    setMsg('login-msg', '✓ Account verified! You can now sign in.', 'success');
+  });
+});
 
-  async function loadHabits() {
-    const userId = getViewerUserId();
-    const list = document.getElementById('habitsList');
-    list.innerHTML = '<div class="loading">Loading habits...</div>';
-    try {
-      const res = await fetch(`${API}/habits?userId=${userId}`);
-      const data = await res.json();
-      const habits = data.habits || [];
-      if (habits.length === 0) {
-        list.innerHTML = '<div class="empty-state">No habits yet. Add your first one above.</div>';
-        return;
-      }
-      list.innerHTML = habits.map(h => `
-        <div class="habit-card">
-          <div class="habit-info">
-            <span class="habit-name">${h.name}</span>
-            <div class="habit-meta">
-              ${h.email}
-              <span style="color:#ddd;">·</span>
-              <span class="badge badge-blue">${formatSchedule(h.schedule)}</span>
-              ${h.reminderTime ? `<span class="badge badge-green">${formatTime(h.reminderTime)}</span>` : ''}
-            </div>
-          </div>
-          <button class="btn btn-danger" onclick="deleteHabit('${h.habitId}')">Delete</button>
-        </div>
-      `).join('');
-    } catch (e) {
-      list.innerHTML = '<div class="empty-state">Failed to load habits. Check your connection.</div>';
-    }
-  }
+document.getElementById('verify-code').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('btn-verify').click();
+});
 
-  async function addHabit() {
-    const name = document.getElementById('habitName').value.trim();
-    const email = document.getElementById('habitEmail').value.trim();
-    const scheduleRaw = document.getElementById('habitSchedule').value;
-    const reminderTime = document.getElementById('habitTime').value;
-    const userId = document.getElementById('userId').value.trim() || 'fakhri';
-    const errEl = document.getElementById('formError');
-    errEl.textContent = '';
+// ─────────────────────────────────────────────────────────────────
+//  Sign Out
+// ─────────────────────────────────────────────────────────────────
+document.getElementById('btn-logout').addEventListener('click', () => {
+  if (currentUser) currentUser.signOut();
+  currentUser = null;
+  idToken = null;
+  document.getElementById('app-screen').style.display = 'none';
+  document.getElementById('auth-screen').style.display = 'flex';
+  document.getElementById('habits-container').innerHTML = '<div class="loading">Loading habits...</div>';
+});
 
-    if (!name || !email) {
-      errEl.textContent = 'Habit name and email are required.';
-      return;
-    }
-
-    let schedule = scheduleRaw;
-    if (scheduleRaw === 'specific') {
-      const selectedDays = getSelectedDays();
-      if (selectedDays.length === 0) {
-        errEl.textContent = 'Please select at least one day.';
-        return;
-      }
-      schedule = `specific:${selectedDays.join(',')}`;
-    }
-
-    const body = { userId, name, email, schedule };
-    if (reminderTime) body.reminderTime = reminderTime;
-
-    try {
-      const res = await fetch(`${API}/habits`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
-      if (!res.ok) throw new Error('Failed');
-      document.getElementById('habitName').value = '';
-      document.getElementById('habitEmail').value = '';
-      document.getElementById('habitTime').value = '';
-      document.getElementById('habitSchedule').value = 'daily';
-      document.getElementById('daysPicker').classList.remove('visible');
-      ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].forEach(d => {
-        document.getElementById(`day-${d}`).checked = false;
-      });
-      addKnownUser(userId);
-      showToast('Habit added');
-      loadHabits();
-    } catch (e) {
-      errEl.textContent = 'Failed to add habit. Try again.';
-    }
-  }
-
-  async function deleteHabit(habitId) {
-    const userId = getViewerUserId();
-    try {
-      const res = await fetch(`${API}/habits?userId=${userId}&habitId=${habitId}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Failed');
-      showToast('Habit deleted');
-      loadHabits();
-    } catch (e) {
-      showToast('Failed to delete habit');
-    }
-  }
-
-  function showToast(msg) {
-    const t = document.getElementById('toast');
-    t.textContent = msg;
-    t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), 2500);
-  }
-
-  populateViewerSelect();
+// ─────────────────────────────────────────────────────────────────
+//  Enter app
+// ─────────────────────────────────────────────────────────────────
+function enterApp(email) {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app-screen').style.display = 'block';
+  document.getElementById('user-email-display').textContent = email;
   loadHabits();
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  API — Load habits
+// ─────────────────────────────────────────────────────────────────
+async function loadHabits() {
+  document.getElementById('habits-container').innerHTML = '<div class="loading">Loading habits...</div>';
+  try {
+    const res = await fetch(`${API}/habits`, { headers: authHeaders() });
+    if (res.status === 401) return handleUnauthorized();
+    const data = await res.json();
+    renderHabits(data.habits || []);
+  } catch {
+    document.getElementById('habits-container').innerHTML =
+      '<div class="empty-state">Failed to load habits. Check your connection.</div>';
+  }
+}
+
+function renderHabits(habits) {
+  const container = document.getElementById('habits-container');
+  if (!habits.length) {
+    container.innerHTML = '<div class="empty-state">No habits yet. Add your first one above.</div>';
+    return;
+  }
+  container.innerHTML = habits.map(h => `
+    <div class="habit-card">
+      <div class="habit-info">
+        <span class="habit-name">${escHtml(h.name)}</span>
+        <div class="habit-meta">
+          ${escHtml(h.email)}
+          <span style="color:#ddd;">·</span>
+          <span class="badge badge-blue">${escHtml(formatSchedule(h.schedule))}</span>
+          ${h.reminderTime ? `<span class="badge badge-green">${escHtml(formatTime(h.reminderTime))}</span>` : ''}
+        </div>
+      </div>
+      <button class="btn-delete" data-id="${escHtml(h.habitId)}">Delete</button>
+    </div>
+  `).join('');
+
+  document.querySelectorAll('.btn-delete').forEach(btn => {
+    btn.addEventListener('click', () => deleteHabit(btn.dataset.id));
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  API — Add habit
+// ─────────────────────────────────────────────────────────────────
+document.getElementById('btn-add').addEventListener('click', async () => {
+  const name     = document.getElementById('habit-name').value.trim();
+  const email    = document.getElementById('habit-email').value.trim();
+  const schedule = document.getElementById('habit-schedule').value;
+  const time     = document.getElementById('habit-time').value;
+  const errEl    = document.getElementById('formError');
+  errEl.textContent = '';
+
+  if (!name || !email || !schedule) {
+    errEl.textContent = 'Habit name, email and schedule are required.';
+    return;
+  }
+
+  let finalSchedule = schedule;
+  if (schedule === 'specific') {
+    const days = [...document.querySelectorAll('.day-btn.selected')].map(b => b.dataset.day);
+    if (!days.length) { errEl.textContent = 'Please select at least one day.'; return; }
+    finalSchedule = `specific:${days.join(',')}`;
+  }
+
+  const btn = document.getElementById('btn-add');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+
+  try {
+    const res = await fetch(`${API}/habits`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ name, email, schedule: finalSchedule, reminderTime: time || null }),
+    });
+    if (res.status === 401) return handleUnauthorized();
+    if (!res.ok) throw new Error();
+    document.getElementById('habit-name').value = '';
+    document.getElementById('habit-email').value = '';
+    document.getElementById('habit-schedule').value = '';
+    document.getElementById('habit-time').value = '';
+    document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('selected'));
+    document.getElementById('days-picker-row').classList.remove('visible');
+    showToast('Habit added');
+    loadHabits();
+  } catch {
+    errEl.textContent = 'Failed to add habit. Try again.';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Add habit';
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  API — Delete habit
+// ─────────────────────────────────────────────────────────────────
+async function deleteHabit(habitId) {
+  try {
+    const res = await fetch(`${API}/habits?habitId=${habitId}`, {
+      method: 'DELETE',
+      headers: authHeaders(),
+    });
+    if (res.status === 401) return handleUnauthorized();
+    if (!res.ok) throw new Error();
+    showToast('Habit deleted');
+    loadHabits();
+  } catch {
+    showToast('Failed to delete habit', 'error');
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  Schedule dropdown — show/hide day picker
+// ─────────────────────────────────────────────────────────────────
+document.getElementById('habit-schedule').addEventListener('change', function() {
+  document.getElementById('days-picker-row').classList.toggle('visible', this.value === 'specific');
+});
+
+document.querySelectorAll('.day-btn').forEach(btn => {
+  btn.addEventListener('click', () => btn.classList.toggle('selected'));
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  Token expiry handler
+// ─────────────────────────────────────────────────────────────────
+function handleUnauthorized() {
+  if (currentUser) currentUser.signOut();
+  currentUser = null; idToken = null;
+  document.getElementById('app-screen').style.display = 'none';
+  document.getElementById('auth-screen').style.display = 'flex';
+  showToast('Session expired. Please sign in again.', 'error');
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  Utils
+// ─────────────────────────────────────────────────────────────────
+function escHtml(s) {
+  return String(s).replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function formatSchedule(schedule) {
+  if (schedule === 'daily')    return 'Daily';
+  if (schedule === 'weekdays') return 'Weekdays';
+  if (schedule === 'weekends') return 'Weekends';
+  if (schedule?.startsWith('specific:')) return schedule.replace('specific:', '').split(',').join(', ');
+  return schedule || '—';
+}
+
+function formatTime(time24) {
+  const [hour, minute] = time24.split(':').map(Number);
+  const period = hour >= 12 ? 'PM' : 'AM';
+  const hour12 = hour % 12 || 12;
+  return `${hour12}:${String(minute).padStart(2, '0')} ${period}`;
+}
 </script>
 </body>
 </html>
