@@ -238,20 +238,28 @@ function weekLabel(monday) {
 }
 
 // ─────────────────────────────────────────────────────────────────
-//  Completion state (localStorage)
+//  Completion state (loaded from API)
 // ─────────────────────────────────────────────────────────────────
-const STORAGE_KEY = 'habitCompletions';
-function loadStorage() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch { return {}; }
-}
-function saveStorage(data) { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
-function compKey(habitId, date) { return `${currentUserId}|${habitId}|${date}`; }
-function isCompleted(habitId, date) { return !!loadStorage()[compKey(habitId, date)]; }
+let completionSet = new Set();
+function compKey(habitId, date) { return `${habitId}|${date}`; }
+function isCompleted(habitId, date) { return completionSet.has(compKey(habitId, date)); }
 function setCompleted(habitId, date, val) {
-  const data = loadStorage();
-  if (val) data[compKey(habitId, date)] = true;
-  else delete data[compKey(habitId, date)];
-  saveStorage(data);
+  if (val) completionSet.add(compKey(habitId, date));
+  else completionSet.delete(compKey(habitId, date));
+}
+
+async function loadCompletions() {
+  const dates = weekDates();
+  const startDate = toYMD(dates[0]);
+  const endDate = toYMD(dates[6]);
+  try {
+    const res = await fetch(`${API}/completions?startDate=${startDate}&endDate=${endDate}`, {
+      headers: authHeaders()
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    completionSet = new Set((data.completions || []).map(c => compKey(c.habitId, c.date)));
+  } catch (_) {}
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -293,9 +301,10 @@ function updateWeekNav() {
   document.getElementById('weekRangeLabel').textContent = label;
 }
 
-function shiftWeek(offset) {
+async function shiftWeek(offset) {
   weekOffset = offset === 0 ? 0 : weekOffset + offset;
   updateWeekNav();
+  await loadCompletions();
   renderGrid();
 }
 
@@ -310,6 +319,7 @@ async function loadWeek() {
     if (res.status === 401) { window.location.href = 'index.html'; return; }
     const data = await res.json();
     habits = data.habits || [];
+    await loadCompletions();
     renderGrid();
   } catch {
     document.getElementById('gridSection').innerHTML =
@@ -432,7 +442,7 @@ async function toggleCompletion(habitId, date) {
 
   if (!wasDone) {
     try {
-      await fetch(`${API}/complete?habitId=${encodeURIComponent(habitId)}&date=${date}`, {
+      await fetch(`${API}/complete?userId=${encodeURIComponent(currentUserId)}&habitId=${encodeURIComponent(habitId)}&date=${date}`, {
         headers: authHeaders(),
       });
     } catch (_) {}
