@@ -1,136 +1,158 @@
 # Habit Tracker Frontend
 
-A lightweight dashboard for the [habit-tracker-backend](https://github.com/johnhardin/habit-tracker-backend) — built with vanilla HTML, CSS, and JavaScript. No frameworks, no dependencies, no build step.
+Static browser frontend for the Habit Tracker project. The client is intentionally lightweight: plain `HTML`, `CSS`, and `JavaScript`, with no framework, no package manager, and no build step.
+
+This repository is best read as the UI layer for the AWS backend in [habit-tracker-backend](../habit-tracker-backend/README.md).
 
 **Live:** https://habit.johnhardin.site
 
+## What this frontend is responsible for
+
+- user sign-up, sign-in, and sign-out with AWS Cognito
+- session restore on page load
+- creating and deleting habits through the API
+- rendering a weekly completion grid
+- sending authenticated API requests with a JWT bearer token
+
+It does not send reminders directly. Reminder scheduling, completion persistence, and weekly email generation all live in the backend.
+
 ## Pages
 
-| File | Description |
+| File | Purpose |
 |---|---|
-| `index.html` | Login / sign-up screen + main dashboard — add, view, and delete habits |
-| `weekly.html` | Weekly summary — completion grid and stats for any week |
+| `index.html` | Authentication flow and main habit dashboard |
+| `weekly.html` | Weekly summary page and completion grid |
 
-## Features
+## Frontend architecture
 
-### index.html
-- Sign in or create an account via AWS Cognito (email + password)
-- Email verification step on sign-up
-- Session is restored automatically on page reload — no re-login needed
-- Add habits with a name, email, schedule, and reminder time
-- Choose from daily, weekdays, weekends, or specific days of the week
-- Set a reminder time in Jakarta time (UTC+7)
-- Delete habits
-- Link to the weekly summary page
-
-### weekly.html
-- Protected page — redirects to `index.html` if not logged in
-- **7-day completion grid** — one row per habit, one column per day (Mon–Sun)
-- Navigate to any past or future week with prev/next controls
-- Click a cell to mark a habit done for that day — calls the `/complete` API and persists state in `localStorage`
-- Per-habit completion rate and colour-coded overall percentage (green ≥ 70%, orange ≥ 40%, red < 40%)
-- Habits not scheduled on a given day are shown as dimmed, future dates are greyed out
-
-## Tech Stack
-
-- Vanilla HTML, CSS, JavaScript
-- **AWS Cognito** — user authentication and JWT token issuance
-- Hosted on AWS S3 (private bucket)
-- Served via AWS CloudFront (HTTPS, global CDN)
-- Custom domain with SSL via AWS Certificate Manager (ACM)
-
-## Architecture
-
-```
-User's browser
-      │
-      ▼
-CloudFront (https://habit.johnhardin.site)
-      │  serves static HTML
-      ▼
-S3 bucket (private, CloudFront access only)
-      │
-      ▼
-Cognito User Pool (sign in / sign up)
-      │  issues JWT token
-      ▼
-API Gateway (JWT Authorizer) → Lambda → DynamoDB
-(see habit-tracker-backend for full backend architecture)
+```text
+Browser
+  |
+  +--> Cognito JS SDK
+  |       |
+  |       v
+  |    ID token (JWT)
+  |
+  v
+Static HTML/JS
+  |
+  v
+API Gateway
+  |
+  v
+Lambda backend
 ```
 
-## How It Works
-
-`index.html` handles both authentication and the habit dashboard in a single page — the login screen and app screen are shown/hidden based on the Cognito session state. On load, it checks for an existing session and jumps straight to the dashboard if valid.
-
-All API calls include an `Authorization: Bearer <jwt>` header. The backend extracts the user identity from the JWT `sub` claim — no `userId` is passed from the client.
-
-`weekly.html` does the same session check on load and redirects to `index.html` if not authenticated. It fetches the habit list and tracks completion state in `localStorage` (keyed by the JWT `sub` claim), syncing done-marks back to DynamoDB via the `/complete` endpoint.
-
-## Configuration
-
-Both `index.html` and `weekly.html` have a config block at the top of the script section. Update these before deploying:
+The frontend is hosted as static files and depends on three values configured directly in both pages:
 
 ```javascript
-const USER_POOL_ID = 'ap-southeast-1_AbCdEfGhI';  // Cognito User Pool ID
-const CLIENT_ID    = 'your-app-client-id';          // Cognito App Client ID
+const USER_POOL_ID = 'ap-southeast-1_AbCdEfGhI';
+const CLIENT_ID    = 'your-app-client-id';
 const API          = 'https://your-api-gateway-url.execute-api.ap-southeast-1.amazonaws.com';
 ```
 
-`USER_POOL_ID` and `CLIENT_ID` are safe to commit — they are public identifiers, not secrets.
+`USER_POOL_ID` and `CLIENT_ID` are public identifiers, not secrets.
 
-## Hosting Setup
+## Authentication flow
 
-### Prerequisites
-- AWS account
-- Cognito User Pool with an App Client (no client secret)
-- S3 bucket (private)
-- CloudFront distribution pointing to the S3 bucket
-- ACM certificate for your custom domain (if using one)
+`index.html` embeds the Cognito browser SDK from a CDN and implements:
 
-### Deploy
+- sign-up with email and password
+- email verification with a six-digit code
+- sign-in using Cognito authentication
+- session restoration on reload via `getCurrentUser()` and `getSession()`
 
-Deployment is automated via GitHub Actions on every push to `main` — files are synced to S3 and CloudFront cache is invalidated automatically.
+Once a session is established, the frontend stores the JWT in memory and sends it as:
 
-To deploy manually:
+```http
+Authorization: Bearer <jwt>
+```
 
-**1. Upload to S3**
+The backend then uses the JWT `sub` claim as the source of truth for user identity.
+
+## Main user flows
+
+### Dashboard (`index.html`)
+
+The dashboard supports:
+
+- create a habit with `name`, `email`, `schedule`, and optional `reminderTime`
+- list all habits for the signed-in user
+- delete a habit
+- navigate to the weekly summary page
+
+Supported schedule formats:
+
+- `daily`
+- `weekdays`
+- `weekends`
+- `specific:Mon,Wed,Fri`
+
+### Weekly summary (`weekly.html`)
+
+The weekly page:
+
+- requires a valid Cognito session
+- fetches habits from `GET /habits`
+- fetches completion records for a date range from `GET /completions`
+- renders a 7-day grid from Monday through Sunday
+- computes per-habit and overall completion percentages
+- calls `GET /complete` when a user marks a day as complete
+
+## Local development
+
+No build step is required.
+
+Run a static file server from the project directory:
+
+```bash
+python3 -m http.server 8000
+```
+
+Open:
+
+- `http://localhost:8000` - dashboard
+- `http://localhost:8000/weekly.html` - weekly view
+
+For local authentication to work, `localhost` must be allowed in the Cognito app client configuration.
+
+## Deployment
+
+This frontend is designed for static hosting on:
+
+- Amazon S3
+- Amazon CloudFront
+- optional custom domain with ACM-managed TLS
+
+Deployment in the original project is automated with GitHub Actions. Manual deployment is also straightforward:
+
 ```bash
 aws s3 sync . s3://your-bucket-name \
   --exclude ".git/*" --exclude ".github/*" \
   --delete --region ap-southeast-1
 ```
 
-**2. Invalidate CloudFront cache**
+Then invalidate CloudFront:
+
 ```bash
 aws cloudfront create-invalidation \
   --distribution-id YOUR_DISTRIBUTION_ID \
   --paths "/*"
 ```
 
-### GitHub Actions secrets required
+## Known limitations
 
-| Secret | Description |
-|---|---|
-| `AWS_ACCESS_KEY_ID` | IAM user access key |
-| `AWS_SECRET_ACCESS_KEY` | IAM user secret key |
-| `AWS_REGION` | e.g. `ap-southeast-1` |
-| `S3_BUCKET_NAME` | S3 bucket name |
-| `CLOUDFRONT_DISTRIBUTION_ID` | CloudFront distribution ID |
+- The frontend is a single-file-per-page implementation, so UI logic, markup, and styling are coupled intentionally for simplicity.
+- The weekly page exposes an "undo" interaction in the UI, but the backend does not currently provide a matching delete/un-complete API. As a result, that undo is not durable.
+- Configuration is hardcoded into the HTML files and must be updated before deployment.
 
-## Local Development
+## Why this repo is useful in a cloud portfolio
 
-No build step needed. Serve both files with Python:
+Even though the frontend is simple, it demonstrates a few relevant engineering choices:
 
-```bash
-python3 -m http.server 8000
-```
+- no-framework static delivery
+- direct integration with managed identity
+- JWT-backed API access
+- thin-client design where business logic stays in the backend
 
-Then open in your browser:
-- `http://localhost:8000` — login + dashboard
-- `http://localhost:8000/weekly.html` — weekly summary
-
-> Note: Cognito auth works on localhost as long as `localhost` is added to the allowed callback URLs in your Cognito App Client settings.
-
-## Related
-
-- [habit-tracker-backend](https://github.com/johnhardin/habit-tracker-backend) — Lambda functions, DynamoDB, SES, EventBridge
+For the platform side of the project, see [habit-tracker-backend](../habit-tracker-backend/README.md).
