@@ -4,7 +4,6 @@ Static browser frontend for the Habit Tracker project. The client is intentional
 
 This repository is best read as the UI layer for the AWS backend in [habit-tracker-backend](../habit-tracker-backend/README.md).
 
-**Live:** https://habit.johnhardin.site
 
 ## What this frontend is responsible for
 
