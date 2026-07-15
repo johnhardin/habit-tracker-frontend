@@ -2,7 +2,7 @@
 
 Static browser frontend for the Habit Tracker project. The client is intentionally lightweight: plain `HTML`, `CSS`, and `JavaScript`, with no framework, no package manager, and no build step.
 
-This repository is best read as the UI layer for the AWS backend in [habit-tracker-backend](../habit-tracker-backend/README.md).
+This repository is best read as the UI layer for the AWS backend in [habit-tracker-backend](https://github.com/johnhardin/habit-tracker-backend).
 
 
 ## What this frontend is responsible for
@@ -142,16 +142,7 @@ aws cloudfront create-invalidation \
 ## Known limitations
 
 - The frontend is a single-file-per-page implementation, so UI logic, markup, and styling are coupled intentionally for simplicity.
-- The weekly page exposes an "undo" interaction in the UI, but the backend does not currently provide a matching delete/un-complete API. As a result, that undo is not durable.
+- The weekly page shows "undo" interaction button in the UI, but the backend does not currently provide a matching delete/un-complete API. As a result, that undo button only for visual implement and if you reload the page, it still shows the habit is completed.
 - Configuration is hardcoded into the HTML files and must be updated before deployment.
 
-## Why this repo is useful in a cloud portfolio
-
-Even though the frontend is simple, it demonstrates a few relevant engineering choices:
-
-- no-framework static delivery
-- direct integration with managed identity
-- JWT-backed API access
-- thin-client design where business logic stays in the backend
-
-For the platform side of the project, see [habit-tracker-backend](https://github.com/johnhardin/habit-tracker-backend).
+For the platform side of the project, see [Habit-tracker-backend](https://github.com/johnhardin/habit-tracker-backend)
