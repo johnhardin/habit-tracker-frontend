@@ -154,4 +154,4 @@ Even though the frontend is simple, it demonstrates a few relevant engineering c
 - JWT-backed API access
 - thin-client design where business logic stays in the backend
 
-For the platform side of the project, see [habit-tracker-backend](../habit-tracker-backend/README.md).
+For the platform side of the project, see [habit-tracker-backend](https://github.com/johnhardin/habit-tracker-backend).
